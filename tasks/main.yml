@@ -1,8 +1,9 @@
 ---
 
-- set_fact:
+- name: set facts
+  set_fact:
     perfrom_action: true
-    role_comment: "( {{role_path|basename}} )"
+    role_comment: "( {{ role_path|basename }} )"
 
 - name: perform nexus api action {{ role_comment }}
   debug:
@@ -81,7 +82,8 @@
     msg: "{{ nexus_login_result }}"
   when: perfrom_action
 
-- set_fact:
+- name: get nexus cookie
+  set_fact:
     nexus_cookie: "{{ nexus_login_result.set_cookie }}"
   when: perfrom_action
 
