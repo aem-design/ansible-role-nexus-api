@@ -1,0 +1,14 @@
+---
+
+nexus_host: "localhost"
+nexus_port: "8081"
+nexus_api_path: "/service/extdirect"
+nexus_api_url: "http://{{ nexus_host }}:{{ nexus_port }}{{ nexus_api_path }}"
+
+nexus_api_login_url: "http://{{ nexus_host }}:{{ nexus_port }}/service/rapture/session"
+
+nexus_username: "admin"
+nexus_password: "admin123"
+
+wait_delay: 1                                                             # how long to wait between retries
+wait_timeout: 300                                                         # how long to wait before terminating
