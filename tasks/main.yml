@@ -1,7 +1,7 @@
 ---
 
 - set_fact:
-    perfrom_action: yes
+    perfrom_action: true
     role_comment: "( {{role_path|basename}} )"
 
 - name: perform nexus api action {{ role_comment }}
@@ -20,7 +20,7 @@
 - name: wait until nexus service is ready {{ role_comment }}
   uri:
     url: "http://{{ nexus_host }}:{{ nexus_port }}"
-    return_content: yes
+    return_content: true
     timeout: 300
   register: nexus_console
   until: nexus_console.content.find("Nexus Repository Manager") != -1
@@ -30,10 +30,10 @@
 - name: check if repo already is available {{ role_comment }}
   uri:
     url: "{{ repo_check_url }}"
-    return_content: yes
+    return_content: true
     timeout: 3
   register: docker_registry_ping
-  ignore_errors: yes
+  ignore_errors: true
   when:
     - api_action is defined and api_action == 'createrepo'
 
@@ -70,7 +70,7 @@
     method: POST
     body_format: raw
     body: "username={{ nexus_username | b64encode | urlencode() }}&password={{ nexus_password | b64encode | urlencode() }}"
-    return_content: yes
+    return_content: true
     status_code: 204
     timeout: 3
   register: nexus_login_result
@@ -105,7 +105,7 @@
     method: POST
     body_format: json
     body: "{{ body }}"
-    return_content: yes
+    return_content: true
   register: createrepo_result
   when: perfrom_action
 
