@@ -1,15 +1,111 @@
 ---
 - name: Converge
-  hosts: all
+  hosts: instance
   become: true
+  vars:
+    local_role_name: "ansible-role-nexus-api"
+    role_name: "{% if lookup('env','ROLE_NAME_FULL') %}{{ lookup('env','ROLE_NAME_FULL') }}{% else %}{{ local_role_name }}{% endif %}"
 
   pre_tasks:
-    - name: Update apt cache.
-      apt: update_cache=yes cache_valid_time=600
-      when: ansible_os_family == 'Debian'
+    - name: get docker host ip
+      become: true
+      shell: |
+        set -o pipefail
+        /sbin/ip route | awk '/default/ { print $3 }'
+      args:
+        executable: /bin/bash
+      register: dockerhost_ip
+      changed_when: false
+
+    - name: add container to inventory
+      add_host:
+        name: "{{ nexus_container }}"
+        ansible_connection: docker
+      changed_when: false
+    
+    - name: get generated password
+      delegate_to: "{{ nexus_container }}"
+      become: false
+      shell: cat /var/jenkins_home/secrets/initialAdminPassword
+      args:
+        executable: /bin/bash
+      register: docker_exec
+      changed_when: false
+    
+    
+    - name: output docker-exec
+      debug:
+        msg:
+          - docker_exec {{ docker_exec.stdout }}
 
   roles:
     - {
-      role: aem_design.nexus_api,
-      debug_hide: false
+      role: "{{ role_name }}",
+      nexus_host: "{{ dockerhost_ip.stdout }}",
+      nexus_port: "9081",
+      nexus_username: "admin",
+      nexus_password: "admin123",
+      api_action: "createrepo",
+      repo_check_url: "http://{{ dockerhost_ip.stdout }}:9081/v1/_ping",
+      body: {
+        "action": "coreui_Repository",
+        "method": "create",
+        "data": [
+        {
+          "attributes": {
+            "docker": {
+              "httpPort": "5000",
+              "v1Enabled": true
+            },
+            "storage": {
+              "blobStoreName": "default",
+              "strictContentTypeValidation": true,
+              "writePolicy": "ALLOW"
+            }
+          },
+          "name": "privateregistry",
+          "format": "",
+          "type": "",
+          "url": "",
+          "online": true,
+          "checkbox-1361-inputEl": true,
+          "checkbox-1364-inputEl": false,
+          "recipe": "docker-hosted"
+        }
+        ],
+        "type": "rpc",
+        "tid": 22
+      }
+    }
+    - {
+      role: "{{ role_name }}",
+      nexus_host: "{{ dockerhost_ip.stdout }}",
+      nexus_port: "9081",
+      api_action: "updaterepo",
+      body: {
+        "action": "coreui_Repository",
+        "method": "update",
+        "data": [
+        {
+          "attributes": {
+            "maven": {
+              "versionPolicy":"RELEASE",
+              "layoutPolicy":"PERMISSIVE"
+            },
+            "storage": {
+              "blobStoreName":"default",
+              "strictContentTypeValidation":false,
+              "writePolicy":"ALLOW_ONCE"
+            }
+          },
+          "name": "maven-releases",
+          "format": "maven2",
+          "type": "hosted",
+          "url": "http://{{ dockerhost_ip.stdout }}:9081/repository/maven-releases/",
+          "online": true,
+        }
+        ],
+        "type": "rpc",
+        "tid": 18
+      }
     }

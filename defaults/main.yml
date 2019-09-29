@@ -5,7 +5,25 @@ nexus_port: "8081"
 nexus_api_path: "/service/extdirect"
 nexus_api_url: "http://{{ nexus_host }}:{{ nexus_port }}{{ nexus_api_path }}"
 
-nexus_api_login_url: "http://{{ nexus_host }}:{{ nexus_port }}/service/rapture/session"
+nexus_host_url: "http://{{ nexus_host }}:{{ nexus_port }}"
+
+nexus_api_login_url: "{{ nexus_host_url }}/service/rapture/session"
+
+nexus_api_change_password: "{{ nexus_host_url }}/service/rest/internal/ui/onboarding/change-admin-password"   # PUT
+nexus_api_external_access: "{{ nexus_host_url }}/service/extdirect"   # POST
+nexus_api_external_access_payload: {
+  action: "coreui_AnonymousSettings",
+  method: "update",
+  data: [
+    {
+      enabled: true,
+      userId: "anonymous",
+      realmName: "NexusAuthorizingRealm"
+    }
+  ],
+  type: "rpc",
+  "tid": 5
+}   # POST
 
 nexus_username: "admin"
 nexus_password: "admin123"
