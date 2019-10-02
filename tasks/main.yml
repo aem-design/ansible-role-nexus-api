@@ -5,123 +5,51 @@
     perfrom_action: true
     role_comment: "( {{ role_path|basename }} )"
 
-- name: perform nexus api action {{ role_comment }}
-  debug:
-    msg:
-      - "{{ api_action }}"
-      - "{{ body }}"
-
-- name: wait for nexus service {{ role_comment }}
-  wait_for:
-    host: "{{ nexus_host }}"
-    port: "{{ nexus_port }}"
-    delay: "{{ wait_delay | default(5) }}"
-
-
-- name: wait until nexus service is ready {{ role_comment }}
-  uri:
-    url: "http://{{ nexus_host }}:{{ nexus_port }}"
-    return_content: true
-    timeout: 300
-  register: nexus_console
-  until: nexus_console.content.find("Nexus Repository Manager") != -1
-  delay: "{{ wait_delay | default(5) }}"
-  retries: 360
-
-- name: check if repo already is available {{ role_comment }}
-  uri:
-    url: "{{ repo_check_url }}"
-    return_content: true
-    timeout: 3
-  register: docker_registry_ping
-  ignore_errors: true
-  when:
-    - api_action is defined and api_action == 'createrepo'
-
-- name: check if repo already is available output
-  debug:
-    msg: "{{ docker_registry_ping }}"
-  no_log: "{{ debug_hide }}"
-
-- name: nexus registry already exist {{ role_comment }}
-  debug:
-    msg: "registry exist"
-  when:
-    - api_action is defined and api_action == 'createrepo'
-    - not docker_registry_ping.failed
-
-- name: nexus registry does not exist {{ role_comment }}
+- name: set createRepository script name
   set_fact:
-    perfrom_action: "{{ docker_registry_ping.failed }}"
-  when:
-    - api_action is defined and api_action == 'createrepo'
-    - docker_registry_ping.failed
+    script_filename: "{{ nexus_script }}-{{ ansible_date_time.iso8601_micro | to_uuid }}"
 
-- name: login into nexus {{ role_comment }}
-  debug:
-    msg: "username={{ nexus_username | b64encode | urlencode() }}&password={{ nexus_password | b64encode | urlencode() }}"
-  when: perfrom_action
-
-- name: login into nexus {{ role_comment }}
+- name: upload templated script {{ script_filename }}
   uri:
-    url: "{{ nexus_api_login_url }}"
-    headers:
-      Content-Type: "application/x-www-form-urlencoded"
-      Origin: "https://{{ nexus_host }}:{{ nexus_port }}"
-    method: POST
-    body_format: raw
-    body: "username={{ nexus_username | b64encode | urlencode() }}&password={{ nexus_password | b64encode | urlencode() }}"
-    return_content: true
+    url: "{{ nexus_url_api_script }}"
+    method: "POST"
+    user: "{{ nexus_user }}"
+    password: "{{ nexus_password }}"
+    force_basic_auth: "true"
+    body:
+      name: "{{ script_filename }}"
+      content: "{{ lookup('file', './files/scripts/' + nexus_script + '.groovy') }}"
+      type: "groovy"
+    body_format: "json"
+    return_content: "true"
     status_code: 204
-    timeout: 3
-  register: nexus_login_result
-  when: perfrom_action
+    timeout: 5
+  register: nexus_script_create
+  delay: "{{ wait_delay | default(5) }}"
 
-- name: nexus login result {{ role_comment }}
-  debug:
-    msg: "{{ nexus_login_result }}"
-  when: perfrom_action
-
-- name: get nexus cookie
-  set_fact:
-    nexus_cookie: "{{ nexus_login_result.set_cookie }}"
-  when: perfrom_action
-
-- name: nexus login cookie {{ role_comment }}
-  debug:
-    msg: "{{ nexus_cookie }}"
-  when: perfrom_action
-
-- name: nexus api url {{ role_comment }}
-  debug:
-    msg: "{{ nexus_api_url }}"
-  when: perfrom_action
-
-- name: post to api repo {{ role_comment }}
+- name: run uploaded script {{ script_filename }}
   uri:
-    url: "{{ nexus_api_url }}"
+    url: "{{ nexus_url_api_script }}/{{ script_filename }}/run"
+    method: "POST"
+    user: "{{ nexus_user }}"
+    password: "{{ nexus_password }}"
+    force_basic_auth: "true"
     headers:
-      Origin: "https://{{ nexus_host }}:{{ nexus_port }}"
-      Content-Type: "application/json"
-      Cookie: "{{ nexus_cookie }}"
-    method: POST
-    body_format: json
-    body: "{{ body }}"
-    return_content: true
-  register: createrepo_result
-  when: perfrom_action
+      Content-Type: "text/plain"
+    body: "{{ service_nexus_script_arguments | to_json }}"
+    timeout: 5
+    status_code: 200
+  register: nexus_script_run
+  delay: "{{ wait_delay | default(5) }}"
 
-- name: nexus create repo result {{ role_comment }}
-  debug:
-    msg: "{{ createrepo_result }}"
-  when: perfrom_action
-
-- name: nexus create repo outcome {{ role_comment }}
-  debug:
-    msg: "Could not create repo: {{ createrepo_result.json.result.errors.name }}"
-  when:
-    - perfrom_action
-    - createrepo_result.json is defined
-    - createrepo_result.json.result is defined
-    - createrepo_result.json.result.success is defined
-    - not createrepo_result.json.result.success
+- name: delete uploaded script {{ script_filename }}
+  uri:
+    url: "{{ nexus_url_api_script }}/{{ script_filename }}"
+    method: "DELETE"
+    user: "{{ nexus_user }}"
+    password: "{{ nexus_password }}"
+    force_basic_auth: "true"
+    timeout: 5
+    status_code: 204
+  register: nexus_script_delete
+  delay: "{{ wait_delay | default(5) }}"

@@ -1,32 +1,14 @@
 ---
 
-nexus_host: "localhost"
-nexus_port: "8081"
-nexus_api_path: "/service/extdirect"
-nexus_api_url: "http://{{ nexus_host }}:{{ nexus_port }}{{ nexus_api_path }}"
+nexus_host: "{{ service_nexus_host }}"                                                                                  # Nexus host
+nexus_port: "{{ service_nexus_port }}"                                                                                  # Nexus port
+nexus_user: "{{ service_nexus_user | default('admin') }}"                                                               # Nexus admin username( default: admin)
+nexus_password: "{{ service_nexus_password | default('admin123') }}"                                                    # Nexus admin password( default: admin123)
 
-nexus_host_url: "http://{{ nexus_host }}:{{ nexus_port }}"
+nexus_script: "{{ service_nexus_script }}"                                                                     # script template to use
 
-nexus_api_login_url: "{{ nexus_host_url }}/service/rapture/session"
-
-nexus_api_change_password: "{{ nexus_host_url }}/service/rest/internal/ui/onboarding/change-admin-password"   # PUT
-nexus_api_external_access: "{{ nexus_host_url }}/service/extdirect"   # POST
-nexus_api_external_access_payload: {
-  action: "coreui_AnonymousSettings",
-  method: "update",
-  data: [
-    {
-      enabled: true,
-      userId: "anonymous",
-      realmName: "NexusAuthorizingRealm"
-    }
-  ],
-  type: "rpc",
-  "tid": 5
-}   # POST
-
-nexus_username: "admin"
-nexus_password: "admin123"
+nexus_url: "http://{{ service_nexus_host }}:{{ service_nexus_port }}"                                                   # Nexus url
+nexus_url_api_script: "{{ nexus_url }}/service/rest/v1/script"                                                          # Nexus script API base url
 
 wait_delay: 1                                                             # how long to wait between retries
 wait_timeout: 300                                                         # how long to wait before terminating
